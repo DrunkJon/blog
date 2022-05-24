@@ -1,0 +1,1407 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <generator uri="https://gohugo.io/" version="0.92.2">Hugo</generator>
+    <title>Parallel Computing and I/O Blog</title>
+        <subtitle>We conduct research and development on parallel systems</subtitle>
+            <link href="https://blog.parcio.de/" rel="alternate" type="text/html" title="HTML" />
+            <link href="https://blog.parcio.de/feed.xml" rel="self" type="application/atom+xml" title="Atom" />
+    <updated>2022-05-24T21:00:13+00:00</updated>
+    <id>https://blog.parcio.de/</id>
+        <entry>
+            <title>Lossless Data Compression</title>
+            <link href="https://blog.parcio.de/posts/2022/05/lossless-data-compression/" rel="alternate" type="text/html"  hreflang="en" />
+            <id>https://blog.parcio.de/posts/2022/05/lossless-data-compression/</id>
+                    <author>
+                        <name>Yolanda Thiel</name>
+                    </author>
+            <published>2022-05-24T00:00:00+00:00</published>
+            <updated>2022-05-24T00:00:00+00:00</updated>
+            <content type="html">
+                &lt;p&gt;This post is an introduction to lossless data compression in which we will explore the approaches of entropy-based/statistical as well as dictionary-based compression and explain some of the most common algorithms.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;but-first-of-all-why-do-we-even-need-data-compression&#34;&gt;
+        But first of all, why do we even need data compression?
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#but-first-of-all-why-do-we-even-need-data-compression&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor But first of all, why do we even need data compression?&#34; href=&#34;#but-first-of-all-why-do-we-even-need-data-compression&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;Audio and video communication as well as large multimedia platforms as we know them today are only possible because of data compression.
+Usually, every single photo or video posted on social media or video/streaming platforms has to be compressed.
+Otherwise, the size of the data would be too large to deal with effectively.
+Of course, in scientific research, there are also fields of application where we generate or measure large amounts of data.
+To store all this data, we need data compression.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;basics&#34;&gt;
+        Basics
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#basics&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Basics&#34; href=&#34;#basics&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;A data compression technique usually contains two algorithms:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;One compression algorithm which takes the original input A and generates a representation of this original input A&#39; which (ideally) requires less bits than A.&lt;/li&gt;
+&lt;li&gt;One reconstruction/decoding algorithm which operates on the compressed representation A&#39; and generates the reconstruction B.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;If B is identical to A, the compression is called lossless.
+If B differs from A, the compression is called lossy.
+To compare different compression algorithms it is possible to use the data compression ratio which can be calculated by dividing the uncompressed size by the compressed size of the data.&lt;/p&gt;
+
+
+  
+  &lt;link
+    rel=&#34;stylesheet&#34;
+    href=&#34;/katex-dd24dca1.min.css&#34;
+  /&gt;
+  &lt;script defer src=&#34;/js/katex-82ce7dc3.bundle.min.js&#34;&gt;&lt;/script&gt;
+  
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(\text{data compression ratio} = \frac{\text{uncompressed size of data}}{\text{compressed size of data}} = \frac{\text{size of A}}{\text{size of A&amp;#39;}}\)
+&lt;/span&gt;
+
+&lt;p&gt;Of course, this is only one of different useful measurements and the performance of compression algorithms is highly dependent on the input data.
+But if there are several algorithms that are suitable for the data which is to be compressed, comparing the compression ratio could be sensible.&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;a-first-compression-algorithm-run-length-encoding-rle&#34;&gt;
+        A first compression algorithm: Run-Length Encoding (RLE)
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#a-first-compression-algorithm-run-length-encoding-rle&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor A first compression algorithm: Run-Length Encoding (RLE)&#34; href=&#34;#a-first-compression-algorithm-run-length-encoding-rle&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;Let us have a look at this rather easy compression algorithm, called &lt;strong&gt;run-length encoding&lt;/strong&gt;:
+It stores &lt;strong&gt;runs&lt;/strong&gt; of data as single data value and count.
+A &lt;strong&gt;run&lt;/strong&gt; is a sequence in which the same data value occurs in consecutive data elements.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s consider a line of 10 pixels, where the pixels can either be white or black.
+If W stands for a white pixel and B for a  black pixel, we could have data which looks like this: &lt;code&gt;BBBBBWWWWW&lt;/code&gt;.
+A run-length encoding algorithm could compress this input as following &lt;code&gt;5B5W&lt;/code&gt;, because there are 5 black pixels followed by 5 white pixels.
+So instead of saving 10 characters, the output of RLE would only need 4 characters.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Of course, we do not need to use chars but also could use other data types to save and compress our data. We use chars in this example because this should make it easier to understand the concept.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;This approach works best if there are many longer runs in the data.
+Therefore, the best case scenario of the input for our example would be &lt;code&gt;WWWWWWWWWW&lt;/code&gt; or &lt;code&gt;BBBBBBBBBB&lt;/code&gt;, because this input can be compressed as &lt;code&gt;10W&lt;/code&gt; or &lt;code&gt;10B&lt;/code&gt;, which is the shortest possible output for this example.
+In this case we would have a compression ratio of 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(\frac{10}{3} = 3.\overline{3}\)
+&lt;/span&gt;
+(also sometimes displayed as 10:3).&lt;/p&gt;
+&lt;p&gt;But if there aren&amp;rsquo;t many runs in the file, which is to be compressed, the output file of the algorithm might be larger than the input file.
+In the case of our example the worst case would be one of these input files: &lt;code&gt;WBWBWBWBWB&lt;/code&gt; &lt;code&gt;BWBWBWBWBW&lt;/code&gt;.&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;details style=&#34;cursor: pointer;&#34;&gt;
+&lt;summary&gt;What would be the compression rate in this worst case? &lt;i&gt;Click to show the answer.&lt;/i&gt;&lt;/summary&gt;
+&lt;p&gt;0.5, because the uncompressed size is 10 chars and the &#39;compressed&#39; size is 20 chars.&lt;/p&gt;
+&lt;/details&gt;
+&lt;hr&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;entropy-basedstatistical-compression&#34;&gt;
+        Entropy-based/statistical compression
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#entropy-basedstatistical-compression&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Entropy-based/statistical compression&#34; href=&#34;#entropy-basedstatistical-compression&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;The next approaches, we want to get to know, are called entropy-based because they use the entropy of the given data.
+The entropy of data depends on the probabilities of certain symbols to occur in the given data.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+While Run-Length Encoding assigns a fixed-size code to the symbols it operates on, entropy-based approaches have variable-sized codes.
+Entropy-based approaches work by replacing unique symbols within the input data with a unique and shorter prefix code.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+To ensure a good compression ratio, the used prefix should be shorter the more often a symbol occurs.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt; &lt;sup id=&#34;fnref:5&#34;&gt;&lt;a href=&#34;#fn:5&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;
+Examples of this approach are arithmetic coding, Shannon-Fano coding and Huffman coding.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h3 id=&#34;huffman-coding&#34;&gt;
+        Huffman coding
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#huffman-coding&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Huffman coding&#34; href=&#34;#huffman-coding&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h3&gt;
+&lt;/div&gt;
+&lt;p&gt;We will explore some of the previously mentioned properties of entropy-based compression algorithms on the example of Huffman coding.&lt;/p&gt;
+&lt;div align=&#34;center&#34;&gt;
+  &lt;figure&gt;
+    &lt;img src=&#34;huffman-coding-toennies.png&#34; alt=&#34;Huffman Coding example Tönnies&#34;&gt;
+    &lt;figcaption&gt;This example is taken from page 136 of Tönnies&#39; book &#34;Grundlagen der Bildverarbeitung&#34;.&lt;sup&gt;6&lt;/sup&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;In this example we want to compress the image shown on the top.
+To do so, we create a normed histogram of all values as the first step.
+In the image itself but also in its histogram we can see that the darkest possible greyscale value occurs quite often while the other lighter greyscale values have lower frequencies.
+The algorithm now merges the symbols according to their frequency until there are only 2 symbols left.
+So in the case of the example, the two least frequent greyscale values are merged in every step.
+Then the original symbols are given new prefix codes.
+Symbols which were previously merged are broken down into segments and for every segment the code is extended.
+Therefore, the most occuring symbol gets the shortest prefix code and the least occuring symbol gets the longest prefix code.
+The prefix code assignment is represented in a binary tree, which is also traversed to decode the information.&lt;sup id=&#34;fnref:6&#34;&gt;&lt;a href=&#34;#fn:6&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;
+This approach produces the best code when the probabilities of symbols are negative powers of 2.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;dictionary-based-compression&#34;&gt;
+        Dictionary-based compression
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#dictionary-based-compression&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Dictionary-based compression&#34; href=&#34;#dictionary-based-compression&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;Dictionary-based approaches are the last group of lossless data compression algorithms we will cover in this article.
+Unlike entropy-based approaches, dictionary-based ones do &lt;strong&gt;not&lt;/strong&gt; use a statistical model or a variable-sized code.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;Dictionary-based algorithms partition the data into phrases which are non-overlapping subsets of the original data.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Each phrase is then encoded as a token using a dictionary.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+Accordingly, there are two stages in a dictionary-based compression algorithm:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;The dictionary construction stage: In this stage the algorithm finds phrases and codewords.&lt;/li&gt;
+&lt;li&gt;The parsing stage: In this stage the phrases are replaced by codewords.&lt;sup id=&#34;fnref:7&#34;&gt;&lt;a href=&#34;#fn:7&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;There are &lt;strong&gt;static dictionary codes&lt;/strong&gt; and &lt;strong&gt;dynamic/adaptive dictionary codes&lt;/strong&gt;.
+&lt;strong&gt;Static&lt;/strong&gt; dictionaries are created before the input processing and stay the same for the complete run, while &lt;strong&gt;dynamic&lt;/strong&gt; dictionaries are updated during parsing which means that in this case the two stages (dictionary construction and parsing) are interleaved.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+After these rather theoretical basics about dictionary-based compression, we will now dive into different LZ-family algorithms to explain these things on a few examples.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h3 id=&#34;lz-family&#34;&gt;
+        LZ family
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lz-family&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor LZ family&#34; href=&#34;#lz-family&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h3&gt;
+&lt;/div&gt;
+&lt;p&gt;These algorithms are named after their creators Abraham Lempel and Jacob Ziv and are some of the most known dictionary compression methods.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+The algorithms we will go into detail about are LZ77 and LZ78, which are the two original algorithms developed by Lempel and Ziv, as well as a few of their variants.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h3 id=&#34;lz77-and-its-variants&#34;&gt;
+        LZ77 and its variants
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lz77-and-its-variants&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor LZ77 and its variants&#34; href=&#34;#lz77-and-its-variants&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h3&gt;
+&lt;/div&gt;
+&lt;p&gt;LZ77 assumes and exploits that data is most likely to be repeated.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+The principle is to use a part of the previously-seen input stream as the dictionary.
+Thus the input is analyzed through a sliding window:&lt;/p&gt;
+&lt;div align=&#34;center&#34;&gt;
+  &lt;figure&gt;
+    &lt;img src=&#34;lz77-sliding-window-salomon.png&#34; alt=&#34;LZ77 Sliding Window Salomon&#34;&gt;
+    &lt;figcaption&gt;This example is taken from page 176 of Salomon&#39;s book &#34;Data Compression: The Complete Reference&#34;.&lt;sup&gt;3&lt;/sup&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;As seen in the figure above, the window is divided in two parts:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The search buffer: The current dictionary which includes symbols that have previously been input and encoded.&lt;/li&gt;
+&lt;li&gt;The look-ahead buffer which contains data yet to be encoded.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; When a word is repeated, it can be replaced by a pointer to the last occurrence accompanied by the number of matched characters.&lt;sup id=&#34;fnref:8&#34;&gt;&lt;a href=&#34;#fn:8&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I will explain this further on the example shown in the image above:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The encoder scans the search buffer from &lt;strong&gt;right to left&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;It looks for a match in the dictionary (search buffer) for the first symbol &lt;strong&gt;e&lt;/strong&gt; which is in the front of the look-ahead buffer.&lt;/li&gt;
+&lt;li&gt;It finds an &lt;strong&gt;e&lt;/strong&gt; in &amp;ldquo;&lt;strong&gt;easily&lt;/strong&gt;&amp;rdquo; at a distance of &lt;strong&gt;8&lt;/strong&gt; from the end of the search buffer (you have to count from right to left, distance of 1 would be the symbol left of the currently selected symbol).&lt;/li&gt;
+&lt;li&gt;The encoder then matches as many symbols following those 2 e&amp;rsquo;s as possible which are in this case the 3 symbols &amp;ldquo;&lt;strong&gt;eas&lt;/strong&gt;&amp;rdquo;.&lt;/li&gt;
+&lt;li&gt;The length of the match is therefore &lt;strong&gt;3&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;The encoder then continues its backward scan to find a longer match.&lt;/li&gt;
+&lt;li&gt;In this case there is no longer match, but a same length match in &amp;ldquo;&lt;strong&gt;eastman&lt;/strong&gt;&amp;rdquo;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Generally, the encoder selects the longest match or the last one found and prepares the token.
+Why does it use the last one found?
+The answer is quite simple: The algorithm then doesn&amp;rsquo;t have to keep track of all found matches and can save memory space.
+In practical implementations the search buffer is some thousands of bytes long whereas the look-ahead buffer is some tens of bytes long.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Here you can see what the first 5 steps and tokens look like for the example in the image above:&lt;/strong&gt;&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&#34;text-align:right&#34;&gt;Search Buffer&lt;/th&gt;
+&lt;th style=&#34;text-align:left&#34;&gt;Look-Ahead Buffer&lt;/th&gt;
+&lt;th style=&#34;text-align:center&#34;&gt;Token&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;sir_sid_eastman_&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(0,0,&amp;ldquo;s&amp;rdquo;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;s&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;ir_sid_eastman_e&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(0,0,&amp;ldquo;i&amp;rdquo;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;si&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;r_sid_eastman_ea&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(0,0,&amp;ldquo;r&amp;rdquo;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;sir&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;_sid_eastman_eas&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(0,0,&amp;quot;_&amp;quot;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;sir_&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;sid_eastman_easi&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;(4,2,&amp;ldquo;d&amp;rdquo;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;The token always consists of 3 elements:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The first element is the distance of the found match. If there is no match, this element is 0.&lt;/li&gt;
+&lt;li&gt;The second element is the length of the found match. If there is no match, this is again 0.&lt;/li&gt;
+&lt;li&gt;The third and last element is the new symbol which is to be appended.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This approach is suffix-complete, meaning that any suffix of a phrase is a phrase itself. So if the phrase &amp;ldquo;cold&amp;rdquo; is in the dictionary, so are &amp;ldquo;old&amp;rdquo;, &amp;ldquo;ld&amp;rdquo; and &amp;ldquo;d&amp;rdquo;.
+The performance of this algorithm is limited by the number of comparisons needed for finding a matching pattern.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+While the encoder is a bit more complicated, the decoder is rather simple meaning that LZ77 and its variants are useful in cases where data has to be compressed once but decompressed very often.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;Let&amp;rsquo;s try to decode some data compressed by LZ77:
+The 3 tokens (from left &lt;em&gt;[first]&lt;/em&gt; to right &lt;em&gt;[last]&lt;/em&gt;) are: (0,0,&amp;ldquo;y&amp;rdquo;), (0,0,&amp;ldquo;a&amp;rdquo;) and
+(2,1,&amp;quot;!&amp;quot;).&lt;/p&gt;
+&lt;details style=&#34;cursor: pointer;&#34;&gt;
+&lt;summary&gt;&lt;i&gt;Click to show a tip.&lt;/i&gt;&lt;/summary&gt;
+&lt;p&gt;You have to &#34;fill up&#34; a buffer from right to left, using one token at a time and &#34;pushing&#34; the entries one space to the left in every step.&lt;/p&gt;
+&lt;/details&gt;
+&lt;details style=&#34;cursor: pointer;&#34;&gt;
+&lt;summary&gt;Did you find out the decoded text? &lt;i&gt;Click to show the solution.&lt;/i&gt;&lt;/summary&gt;
+&lt;p&gt;yay!&lt;/p&gt;
+&lt;/details&gt;
+&lt;hr&gt;
+&lt;p&gt;Let&amp;rsquo;s have a short look at a few &lt;strong&gt;LZ77 variants&lt;/strong&gt;:&lt;/p&gt;
+&lt;p&gt;(Please note that this part is just a small overview and does not fully explain
+how these variants work since that would go beyond the scope of this article.)&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h4 id=&#34;lzss&#34;&gt;
+        LZSS
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzss&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor LZSS&#34; href=&#34;#lzss&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h4&gt;
+&lt;/div&gt;
+&lt;p&gt;This derivative algorithm was developed by Storer and Szymanski.
+The look-ahead buffer is in this case improved by storing it in a circular queue and the algorithm holds the search buffer in a binary search tree.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Because of that, the tokens have only 2 fields instead of 3.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h4 id=&#34;deflate&#34;&gt;
+        DEFLATE
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#deflate&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor DEFLATE&#34; href=&#34;#deflate&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h4&gt;
+&lt;/div&gt;
+&lt;p&gt;This algorithm &amp;ndash; developed by Philip Katz &amp;ndash; was originally used in Zip and Gzip software and has been adopted by many applications including HTTP and PNG.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+It is based on LZSS, but uses a chained hash table to find duplicates.
+The matched lengths and distances are further compressed with two Huffman trees.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h4 id=&#34;lzma&#34;&gt;
+        LZMA
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzma&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor LZMA&#34; href=&#34;#lzma&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h4&gt;
+&lt;/div&gt;
+&lt;p&gt;The last LZ77 variant of this short overview is the Lempel-Ziv-Markov chain-Algorithm which is the default compression algorithm of 7-zip.
+Its principle is similar to that of DEFLATE but it doesn&amp;rsquo;t use Huffman coding and instead uses range encoding which is an integer-based version of arithmetic coding (an entropy-based compression algorithm).
+This does complicate the encoder but also results in better compression.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h3 id=&#34;lz78-and-its-variants&#34;&gt;
+        LZ78 and its variants
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lz78-and-its-variants&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor LZ78 and its variants&#34; href=&#34;#lz78-and-its-variants&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h3&gt;
+&lt;/div&gt;
+&lt;p&gt;LZ78 constructs its dictionary differently than LZ77 and does therefore not use any search buffer, look-ahead buffer or sliding window.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Compared to LZ77&amp;rsquo;s three-field tokens the LZ78 encoder outputs two-field tokens which each consist of a pointer to the dictionary and the code of a symbol.
+Since the length of the phrases are implied in the dictionary, it doesn&amp;rsquo;t need to be part of the token.&lt;/p&gt;
+&lt;p&gt;Each token corresponds to a phrase of input symbols.
+That phrase is added to the dictionary after the token is written on the compressed stream.
+The size of LZ78&amp;rsquo;s dictionary is only limited by the amount of available memory, because unlike in LZ77 nothing is ever deleted from the dictionary in LZ78.
+On the one hand, this can be an advantage since future pharses can be compressed by dictionary phrases which occured a lot earlier.
+On the other hand, this can also be a disadvantage because the dictionary tends to grow fast and can fill up the entire available memory. &lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;The LZ78 algorithm begins with a single symbol entry in its dictionary, which is the null string at position zero.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; &lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Then it concatenates the first symbol of the following input after every parsing step.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s try to further understand the algorithm by going through an example:
+We want to compress the input &lt;code&gt;a_b_a&lt;/code&gt;.
+The current state could be displayed like this:&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;As previously mentioned the algorithm starts with the null pointer as the dictionary&amp;rsquo;s entry at position 0.&lt;/p&gt;
+&lt;p&gt;At first the dictionary is searched for &amp;ldquo;a&amp;rdquo;.
+If &amp;ldquo;a&amp;rdquo; is not found, the algorithm adds &amp;ldquo;a&amp;rdquo; to the dictionary at position 1 and outputs the token (0, &amp;ldquo;a&amp;rdquo;) since &amp;ldquo;a&amp;rdquo; is the concatenation of the null string and the symbol &amp;ldquo;a&amp;rdquo;.&lt;/p&gt;
+&lt;p&gt;a&lt;code&gt;_b_a&lt;/code&gt;&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;&#34;a&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;Now the dictionary is searched for &amp;ldquo;_&amp;rdquo;, since this symbol is also not yet part of the dictionary, it is added analogously to position 2 and the output token is (0, &amp;ldquo;_&amp;quot;).
+This then happens again for &amp;ldquo;b&amp;rdquo; at position 3.&lt;/p&gt;
+&lt;p&gt;a_b&lt;code&gt;_a&lt;/code&gt;&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;&#34;a&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;2&lt;/td&gt;
+    &lt;td&gt;&#34;_&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;_&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;3&lt;/td&gt;
+    &lt;td&gt;&#34;b&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;b&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;Now that the first 3 symbols of our input &lt;code&gt;a_b_a&lt;/code&gt; are put in the dictionary, the encoder finds a dictionary entry for the next symbol &amp;ldquo;_&amp;rdquo;, but not for &amp;ldquo;_a&amp;rdquo; and therefore adds &amp;ldquo;_a&amp;rdquo; to the dictionary at position 4 and the output token is (2, &amp;ldquo;a&amp;rdquo;), because 2 is the position of &amp;ldquo;_&amp;rdquo;.&lt;/p&gt;
+&lt;p&gt;a_b_a&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;&#34;a&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;2&lt;/td&gt;
+    &lt;td&gt;&#34;_&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;_&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;3&lt;/td&gt;
+    &lt;td&gt;&#34;b&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;b&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;4&lt;/td&gt;
+    &lt;td&gt;&#34;_a&#34;&lt;/td&gt;
+    &lt;td&gt;(2, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;This is another longer example taken from Salomon&amp;rsquo;s &amp;ldquo;Data Compression: The Complete Reference&amp;rdquo;&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;:
+It shows the first 14 steps for this string which is to be compressed: &lt;code&gt;sir_sid_eastman_easily_teases_sea_sick_seals&lt;/code&gt;&lt;/p&gt;
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Dictionary&lt;/th&gt;
+    &lt;th scope=&#34;col&#34;&gt;Token&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;0&lt;/td&gt;
+    &lt;td&gt;null&lt;/td&gt;
+    &lt;td&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1&lt;/td&gt;
+    &lt;td&gt;&#34;s&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;s&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;2&lt;/td&gt;
+    &lt;td&gt;&#34;i&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;i&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;3&lt;/td&gt;
+    &lt;td&gt;&#34;r&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;r&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;4&lt;/td&gt;
+    &lt;td&gt;&#34;_&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;_&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;5&lt;/td&gt;
+    &lt;td&gt;&#34;si&#34;&lt;/td&gt;
+    &lt;td&gt;(1, &#34;i&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;6&lt;/td&gt;
+    &lt;td&gt;&#34;d&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;d&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;7&lt;/td&gt;
+    &lt;td&gt;&#34;_e&#34;&lt;/td&gt;
+    &lt;td&gt;(4, &#34;e&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;8&lt;/td&gt;
+    &lt;td&gt;&#34;a&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;9&lt;/td&gt;
+    &lt;td&gt;&#34;st&#34;&lt;/td&gt;
+    &lt;td&gt;(1, &#34;t&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;10&lt;/td&gt;
+    &lt;td&gt;&#34;m&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;m&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;11&lt;/td&gt;
+    &lt;td&gt;&#34;an&#34;&lt;/td&gt;
+    &lt;td&gt;(8, &#34;n&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;12&lt;/td&gt;
+    &lt;td&gt;&#34;_ea&#34;&lt;/td&gt;
+    &lt;td&gt;(7, &#34;a&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;13&lt;/td&gt;
+    &lt;td&gt;&#34;sil&#34;&lt;/td&gt;
+    &lt;td&gt;(5, &#34;l&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;14&lt;/td&gt;
+    &lt;td&gt;&#34;y&#34;&lt;/td&gt;
+    &lt;td&gt;(0, &#34;y&#34;)&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;p&gt;So let us go through the procedure of LZ78 again quickly:
+Generally, the current symbol is read and becomes a one-symbol phrase.
+Then the encoder tries to find it in the dictionary.
+If the symbol is found in the dictionary, the next symbol is read and concatenated to the first symbol and then this two-symbol phrase is being searched for in the dictionary.
+As long as those phrases are found the process repeats.
+At some point the phrase is not found in the dictionary and thus added to it, while the output is a token consisting of the last dictionary match and the last symbol of the phrase which could not be found in the search.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;This approach is called greedy parsing because the longest phrase with a prefix match is replaced by a codeword.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;
+Therefore, LZ78 is prefix-complete, meaning any prefix of a phrase is a phrase itself.
+So if &amp;ldquo;hello&amp;rdquo; is part of the dictionary, so are &amp;ldquo;hell&amp;rdquo;, &amp;ldquo;hel&amp;rdquo;, &amp;ldquo;he&amp;rdquo; and &amp;ldquo;h&amp;rdquo;.&lt;/p&gt;
+&lt;p&gt;Since we&amp;rsquo;ve now gone through the base algorithm, let us have a look at variants of LZ78.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h4 id=&#34;lzw&#34;&gt;
+        LZW
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzw&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor LZW&#34; href=&#34;#lzw&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h4&gt;
+&lt;/div&gt;
+&lt;p&gt;This variant was developed by Terry Welch.
+Its main feature is that it eliminates the second field of a token.
+The LZW token consists only of a pointer to the dictionary.
+This is possible because the dictionary is initialized with all the symbols in the alphabet.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;
+The GIF encoding algorithm is based on LZW.&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h4 id=&#34;lzmw&#34;&gt;
+        LZMW
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#lzmw&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor LZMW&#34; href=&#34;#lzmw&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h4&gt;
+&lt;/div&gt;
+&lt;p&gt;The second variant we will shortly mention is LZMW which was developed by V. Miller and M. Wegman.
+It is based on two principles:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;When the dictionary is full, the least-recently-used dictionary phrase is deleted.&lt;/li&gt;
+&lt;li&gt;Each phrase which is added to the dictionary is a concatenation of two phrases. This means that a dictionary phrase can grow by more than one symbol at a time (unlike in the base LZ78 algorithm).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;A drawback of this implementation is that it complicates the choice of the data structure for the dictionary because the principles of LZMW lead to a non-prefix-complete dictionary and because a phrase may be added twice due to the deletion of the least-recently-used dictionary phrase if the dictionary is full.&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;limitations-of-lossless-data-compression&#34;&gt;
+        Limitations of lossless data compression
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#limitations-of-lossless-data-compression&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Limitations of lossless data compression&#34; href=&#34;#limitations-of-lossless-data-compression&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;After all these different algorithms, there is one last topic to cover:
+The limitations of lossless data compression.
+Generally, there are of course many more lossless compression algorithms, some of which are very specialised for a specific area like image or audio compression.
+These algorithms could perform badly if they would be used outside of their designated area.
+Which brings us to the question if a perfect compression algorithm could exist.
+Perfect in this case meaning that the compressed file will &lt;em&gt;&lt;strong&gt;always&lt;/strong&gt;&lt;/em&gt; be smaller than the original file.&lt;/p&gt;
+&lt;p&gt;We can find this out by using a counting argument, the pigeonhole principle.&lt;sup id=&#34;fnref:9&#34;&gt;&lt;a href=&#34;#fn:9&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;9&lt;/a&gt;&lt;/sup&gt;
+The pigeonhole principle states that if &lt;strong&gt;n items&lt;/strong&gt; are put into &lt;strong&gt;m containers&lt;/strong&gt; while &lt;strong&gt;n is greather than m&lt;/strong&gt;, then &lt;strong&gt;at least one container&lt;/strong&gt; must contain &lt;strong&gt;more than one item&lt;/strong&gt; (n and m are natural numbers).&lt;sup id=&#34;fnref:10&#34;&gt;&lt;a href=&#34;#fn:10&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;10&lt;/a&gt;&lt;/sup&gt;
+So if we consider that there are 10 pigeons but only 9 holes, at least one hole must contain more than one pigeon.&lt;/p&gt;
+&lt;div align=&#34;center&#34;&gt;
+  &lt;figure style=&#34;max-width: 50%;&#34;&gt;
+    &lt;img src=&#34;TooManyPigeons.jpg&#34; alt=&#34;Pigeon_Hole_Principle_Image&#34;&gt;
+    &lt;figcaption&gt;
+      &lt;a href=&#34;https://commons.wikimedia.org/wiki/File:TooManyPigeons.jpg&#34;&gt;
+      Pigeons-in-holes.jpg by en:User:BenFrantzDale; this image by en:User:McKay&lt;/a&gt;,
+      &lt;a href=&#34;http://creativecommons.org/licenses/by-sa/3.0/&#34;&gt;CC BY-SA 3.0&lt;/a&gt;,
+      via Wikimedia Commons
+    &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;Let&amp;rsquo;s go through this proof from a Stanford University lecture&lt;sup id=&#34;fnref:11&#34;&gt;&lt;a href=&#34;#fn:11&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;11&lt;/a&gt;&lt;/sup&gt;:
+We already know that in lossless data compression, we have compression function C and a decompression function D.
+To ensure that we can uniquely encode or decode a bitstring, these functions must be the inverses of each other:
+
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(D(C(x)) = x\)
+&lt;/span&gt;
+.
+This means that C must be injective.&lt;/p&gt;
+&lt;div align= &#34;center&#34;&gt;
+  &lt;figure style=&#34;max-width: 200px; text-align: center;&#34;&gt;
+    &lt;img src=&#34;injection.png&#34; alt=&#34;Injective Function&#34; style=&#34;mix-blend-mode: difference;&#34;&gt;
+    &lt;figcaption&gt;An injective function is a function, where distinct inputs map to distinct outputs.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;Ideally, the compressed version of a bitstring would always be shorter than the input bitstring.&lt;/p&gt;
+&lt;p&gt;Let 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^n\)
+&lt;/span&gt;
+ be the set of bitstrings of length n and 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^{&amp;lt;n}\)
+&lt;/span&gt;
+ be the set of bitstrings of length less than n.
+There are 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(2^n\)
+&lt;/span&gt;
+ bitstrings of length n and there are 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(2^0 &amp;#43; 2^1 &amp;#43; ... &amp;#43; 2^{n-1} = 2^n - 1\)
+&lt;/span&gt;
+ bitstrings of length less than n.
+Since 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^{&amp;lt;n}\)
+&lt;/span&gt;
+ has less elements than 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^n\)
+&lt;/span&gt;
+, there cannot be an injection from 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^n\)
+&lt;/span&gt;
+ to 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^{&amp;lt;n}\)
+&lt;/span&gt;
+.&lt;/p&gt;
+&lt;p&gt;And because a perfect compression function would have to be an injection from 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^n\)
+&lt;/span&gt;
+ to 
+
+
+
+&lt;span class=&#34;gblog-katex &#34;&gt;
+  \(B^{&amp;lt;n}\)
+&lt;/span&gt;
+, there is no perfect compression function and every lossless compression function will produce a larger output file given certain input data, to ensure that the produced output file is unique.
+Otherwise we would have a lossy compression.&lt;sup id=&#34;fnref:11&#34;&gt;&lt;a href=&#34;#fn:11&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;11&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;This means that for every lossless data compression algorithm there is input data which cannot be compressed.
+Therefore, a check if the compressed file is in fact smaller than input file is necessary.
+Furthermore, it is always useful to know what kind of data is to be compressed, so the algorithm can be chosen based on this information.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;further-reading&#34;&gt;
+        Further reading
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/05/lossless-data-compression/#further-reading&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Further reading&#34; href=&#34;#further-reading&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;I hope this article provided a good overview of some of the most common algorithms in lossless data compression and maybe even sparked your interest in data compression.
+This article did not nearly exhaust the topics covered in the sources it used.
+Especially &amp;ldquo;Data Compression: The Complete Reference&amp;rdquo;&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; is a book which explains a lot of different data compression algorithms quite thoroughly.&lt;/p&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Sayood, K. (2006). Introduction to Data Compression. Third Edition. p. 1-5.&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Run-length encoding. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.wikipedia.org/wiki/Run-length_encoding&#34;
+  
+&gt;https://en.wikipedia.org/wiki/Run-length_encoding&lt;/a&gt;. Accessed on: 2021-11-02.&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Salomon, D. (2007) Data Compression: The Complete Reference. Fourth Edition. p. 47-51, 74, 174-179, 189-190, 199, 209-210, 230, 242-243.&amp;#160;&lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:4&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Duwe, K., Lüttgau, J., Mania, G., Squar, J., Fuchs, A., Kuhn, M., Betke, E., &amp;amp; Ludwig, T. (2020). State of the Art and Future Trends in Data Reduction for High-Performance Computing. Supercomputing Frontiers and Innovations, 7(1), p. 4–36. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://doi.org/10.14529/jsfi200101&#34;
+  
+&gt;https://doi.org/10.14529/jsfi200101&lt;/a&gt;&amp;#160;&lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:5&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Lu,  Z.M.,  Guo,  S.Z.: Chapter  1  -  Introduction.  In:  Lu,  Z.M.,  Guo,  S.Z.  (eds.)  Lossless Information Hiding in Images, pp. 1–68. Syngress (2017), DOI: 10.1016/B978-0-12-812006-4.00001-2&amp;#160;&lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:6&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Tönnies, K. (2005). Grundlagen der Bildverarbeitung. Chapter 6 - Bildkompression. p. 136.&amp;#160;&lt;a href=&#34;#fnref:6&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:7&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Sahinalp, S.C., Rajpoot, N.M.: Chapter 6 - Dictionary-Based Data Compression: An Algorithmic Perspective. In: Sayood, K. (ed.) Lossless Compression Handbook, pp. 153–167. Communications, Networking and Multimedia, Academic Press, San Diego (2003),DOI: 10.1016/B978-012620861-0/50007-3&amp;#160;&lt;a href=&#34;#fnref:7&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:8&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Shanmugasundaram, S. , Lourdusamy, R. (2011). A Comparative Study Of Text Compression Algorithms. ICTACT Journal on Communication Technology 1(3), p. 68–76.&amp;#160;&lt;a href=&#34;#fnref:8&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:9&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Lossless Compression. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.wikipedia.org/wiki/Lossless_compression&#34;
+  
+&gt;https://en.wikipedia.org/wiki/Lossless_compression&lt;/a&gt;. Accessed on 2021-11-04.&amp;#160;&lt;a href=&#34;#fnref:9&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:10&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Pigeonhole Principle. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://en.wikipedia.org/wiki/Pigeonhole_principle&#34;
+  
+&gt;https://en.wikipedia.org/wiki/Pigeonhole_principle&lt;/a&gt;. Accessed on 2021-11-04.&amp;#160;&lt;a href=&#34;#fnref:10&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:11&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;The Pigeonhole Principle. &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://web.stanford.edu/class/archive/cs/cs103/cs103.1132/lectures/08/Small08.pdf&#34;
+  
+&gt;https://web.stanford.edu/class/archive/cs/cs103/cs103.1132/lectures/08/Small08.pdf&lt;/a&gt;. Accessed on: 2021-11-04&amp;#160;&lt;a href=&#34;#fnref:11&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+            </content>  
+                                <category scheme="https://blog.parcio.de/authors/yolanda.thiel" term="yolanda.thiel" label="yolanda.thiel" />  
+                                <category scheme="https://blog.parcio.de/tags/Teaching" term="Teaching" label="Teaching" /> 
+                                <category scheme="https://blog.parcio.de/tags/EPEA-2021" term="EPEA-2021" label="EPEA 2021" />
+        </entry>
+        <entry>
+            <title>Libfabric: A generalized way for fabric communication</title>
+            <link href="https://blog.parcio.de/posts/2022/04/libfabric/" rel="alternate" type="text/html"  hreflang="en" />
+            <id>https://blog.parcio.de/posts/2022/04/libfabric/</id>
+                    <author>
+                        <name>Julian Benda</name>
+                    </author>
+            <published>2022-04-25T00:00:00+00:00</published>
+            <updated>2022-04-25T00:00:00+00:00</updated>
+            <content type="html">
+                &lt;p&gt;In this post, we will look at the challenges of efficient communication between processes and how Libfabric abstracts them.
+We will see how OFI (Open Fabrics Interfaces) enables a fast and generalized communication.&lt;/p&gt;
+&lt;style&gt;
+@media(prefers-color-scheme: dark) {
+	html.color-toggle-auto .light-only {
+		display: none;
+	}
+}
+@media(prefers-color-scheme: light) {
+	html.color-toggle-auto .dark-only {
+		display: none;
+	}
+}
+html.color-toggle-dark .light-only {
+	display: none;
+}
+html.color-toggle-light .dark-only {
+	display: none;
+}
+&lt;/style&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;what-is-a-fabric-and-how-to-communicate-in-it&#34;&gt;
+        What is a fabric and how to communicate in it?
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/04/libfabric/#what-is-a-fabric-and-how-to-communicate-in-it&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor What is a fabric and how to communicate in it?&#34; href=&#34;#what-is-a-fabric-and-how-to-communicate-in-it&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;A fabric is nothing more or less than several, more or less uniform, nodes connected via links or, in other words, the typical HPC or cloud computing landscape.&lt;/p&gt;
+&lt;p&gt;Nodes can be linked via different physical media (e.g., copper or optical fiber) and various communication protocols. 
+While the physical medium is hidden behind the network cards, the communication protocol is something we still need to manage in user-space because different protocols require other interactions with the network to function.&lt;/p&gt;
+&lt;p&gt;To have a unified interface for the typical messaging data transfer would be nice, while not necessarily being a game changer.
+But in perspective to RDMA, it differs.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;rdma&#34;&gt;
+        RDMA
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/04/libfabric/#rdma&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor RDMA&#34; href=&#34;#rdma&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;Remote direct memory access (RDMA) sounds counter intuitive at first, because how would you access remote memory directly?
+Directly in this context means without involving the operating system and CPU.
+Instead, the data transfer is entirely managed by the NIC.
+Therefore, we only need to signal we want to read data X from source Y to the memory segment Z, and the NIC does the rest.&lt;/p&gt;
+&lt;p&gt;In contrast, for normal kernel mode networking, we will copy the buffer multiple times and run it through various layers of code (e.g., socket, TCP protocol implementation, and driver).
+This will cause a load on the CPU and bus, while RDMA, thanks to kernel bypass to the NIC, can offload a huge part from the network stack.&lt;/p&gt;
+&lt;p&gt;This opens many questions, to name a few:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;When is the memory transfer finished?&lt;/li&gt;
+&lt;li&gt;How to avoid inconsistency due to invalidated caches?&lt;/li&gt;
+&lt;li&gt;Is RDMA even possible with this NIC?&lt;/li&gt;
+&lt;li&gt;How to queue RDMA requests?&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The answers to these questions depend strongly on the implementation and the network protocol.
+Therefore, a unified solution is quite welcome if you want the flexibility to change your link type.&lt;/p&gt;
+&lt;p&gt;A short reminder: RDMA still uses the same network as typical network messages, therefore the bandwidth and latency will not change much, but it will reduce the work done by the CPU, which leads to fewer interrupts and more processing time for your calculation running.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;libfabric-abstraction&#34;&gt;
+        Libfabric abstraction
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/04/libfabric/#libfabric-abstraction&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Libfabric abstraction&#34; href=&#34;#libfabric-abstraction&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;Libfabric offers a unified interface to use different communication types over different communication protocols, and each time tries to minimize the overhead.&lt;/p&gt;
+&lt;p&gt;The supported communication types are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Message Queue: Message-based FIFO queue&lt;/li&gt;
+&lt;li&gt;Tagged Message Queue: Similar to Message Queue but enables operations based on a 64-bit tag attached to each message&lt;/li&gt;
+&lt;li&gt;RMA (remote memory access): Abstraction of RDMA to enable it also on systems that are not RDMA-capable&lt;/li&gt;
+&lt;li&gt;Atomic: Allow atomic operations at the network level&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/julea-io/julea&#34;
+  
+&gt;JULEA&lt;/a&gt; is a flexible storage framework for clusters that allows offering arbitrary I/O interfaces to applications.
+It runs completely in user space, which eases development and debugging.
+Because it runs on a cluster, a lot of network communication must be handled.
+Until now, it used TCP (via &lt;code&gt;GSocket&lt;/code&gt;).
+While TCP connections normally work everywhere, the cluster may provide better fabrics, which we were unable to use.
+Now, with Libfabric, we can use a huge variety of other fabrics like InfiniBand.&lt;/p&gt;
+&lt;p&gt;For JULEA, Message Queue and RMA are the most interesting.
+Message Queue fits the communication structure currently used in JULEA.
+RMA enables processing many data transfers in parallel.
+With RMA, we can, for example, process a message with multiple read access and tell the link that the data have no specific order.&lt;/p&gt;
+&lt;p&gt;To achieve this, Libfabric uses different abstracted modules, where each of them is equipped with an optional argument to even use it only for one protocol or just let Libfabric decide what is best.&lt;/p&gt;
+&lt;p&gt;Each module enables us to create the next in the chain until we archive the connection we want.
+The modules of interest are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Fabric information: List of available networks, which can be filtered and is sorted by performance&lt;/li&gt;
+&lt;li&gt;Fabric: All resources needed to use a network&lt;/li&gt;
+&lt;li&gt;Domain: Represents a connection in a fabric (e.g., a port or a NIC)&lt;/li&gt;
+&lt;li&gt;Endpoint: Communication portal to a domain&lt;/li&gt;
+&lt;li&gt;Event queue: Reports asynchronous meta events for an endpoint, like connection established/shutdown&lt;/li&gt;
+&lt;li&gt;Completion queue/counter: High-performance queue reports completed data transfers or just a counter&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If we want, for example, to build a connection to a server (with a known address), we can use &lt;code&gt;fi_getinfo&lt;/code&gt; to request all available fabrics which are capable of connecting to the server.&lt;/p&gt;
+&lt;p&gt;Then we pick the first of them (because this is likely the most performant) and construct a fabric.
+After this because we do not have special requirements (and have already defined our communication destination), we just create a domain at that fabric and then an endpoint with event and completion counter at that.&lt;/p&gt;
+&lt;p&gt;With the endpoint, we get a connect request that needs to be accepted from the server and confirmed via a &lt;code&gt;FI_CONNECTED&lt;/code&gt; in the event queue.&lt;/p&gt;
+&lt;p&gt;Now each time the completion counter increases, we know something has happened; for simple communication, this is enough.
+We can bind different counters or queues to this if we want to differ between incoming and outgoing completion.
+Queues enable us also to keep track of an action based on a context we may freely choose (it is basically an ID).&lt;/p&gt;
+&lt;p&gt;If you want a more detailed explanation, the official introduction to the interface can be found &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://ofiwg.github.io/libfabric/v1.13.2/man/fabric.7.html&#34;
+  
+&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;conclusion-and-first-measurements&#34;&gt;
+        Conclusion and first measurements
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2022/04/libfabric/#conclusion-and-first-measurements&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Conclusion and first measurements&#34; href=&#34;#conclusion-and-first-measurements&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;Libfabric allows using different fabrics with the same interface.
+This way, you can write RDMA-compatible code, and Libfabric makes it also work on a system that does not support RDMA.&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&#34;light-only&#34;&gt;&lt;img src=&#34;julea-gsocket-vs-libfabric-operations.png&#34;
+         alt=&#34;Comparing the performance of JULEA with GSocket using the operations per second for object creation and deletion. This shows that the performance via TCP is slightly in favor of Libfabric and that InfiniBand is multiple orders of magnitude faster than TCP, but impossible to use with GSocket.&#34;/&gt;&lt;figcaption&gt;
+            &lt;p&gt;Comparing the performance of JULEA with GSocket using the operations per second for object creation and deletion. This shows that the performance via TCP is slightly in favor of Libfabric and that InfiniBand is multiple orders of magnitude faster than TCP, but impossible to use with GSocket.&lt;/p&gt;
+        &lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure class=&#34;light-only&#34;&gt;&lt;img src=&#34;julea-gsocket-vs-libfabric-throughput.png&#34;
+         alt=&#34;Comparing performance of JULEA with GSocket and Libfabric network code using the througput of read and write operations. Shows that performance via TCP is similar, while performance via InfiniBand with Libfabric is multiple orders of mangitude faster, while impossible to use with GSocket.&#34;/&gt;&lt;figcaption&gt;
+            &lt;p&gt;Comparing performance of JULEA with GSocket and Libfabric network code using the througput of read and write operations. Shows that performance via TCP is similar, while performance via InfiniBand with Libfabric is multiple orders of mangitude faster, while impossible to use with GSocket.&lt;/p&gt;
+        &lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&#34;dark-only&#34;&gt;&lt;img src=&#34;julea-gsocket-vs-libfabric-operations-dark.png&#34;
+         alt=&#34;Comparing the performance of JULEA with GSocket using the operations per second for object creation and deletion. This shows that the performance via TCP is slightly in favor of Libfabric and that InfiniBand is multiple orders of magnitude faster than TCP, but impossible to use with GSocket.&#34;/&gt;&lt;figcaption&gt;
+            &lt;p&gt;Comparing the performance of JULEA with GSocket using the operations per second for object creation and deletion. This shows that the performance via TCP is slightly in favor of Libfabric and that InfiniBand is multiple orders of magnitude faster than TCP, but impossible to use with GSocket.&lt;/p&gt;
+        &lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure class=&#34;dark-only&#34;&gt;&lt;img src=&#34;julea-gsocket-vs-libfabric-throughput-dark.png&#34;
+         alt=&#34;Comparing performance of JULEA with GSocket and Libfabric network code using the througput of read and write operations. Shows that performance via TCP is similar, while performance via InfiniBand with Libfabric is multiple orders of mangitude faster, while impossible to use with GSocket.&#34;/&gt;&lt;figcaption&gt;
+            &lt;p&gt;Comparing performance of JULEA with GSocket and Libfabric network code using the througput of read and write operations. Shows that performance via TCP is similar, while performance via InfiniBand with Libfabric is multiple orders of mangitude faster, while impossible to use with GSocket.&lt;/p&gt;
+        &lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;We already tested it in JULEA.
+We rewrote the &lt;code&gt;GSocket&lt;/code&gt; network code with Libfabric.
+This resulted in working InfiniBand and RDMA support.
+But also without RDMA, its performance is still similar to the &lt;code&gt;GSocket&lt;/code&gt; implementation.&lt;/p&gt;
+&lt;p&gt;Therefore, Libfabric enables to use the most efficient fabric available without having to modify the code.&lt;/p&gt;
+            </content>  
+                                <category scheme="https://blog.parcio.de/authors/julian.benda" term="julian.benda" label="julian.benda" />  
+                                <category scheme="https://blog.parcio.de/tags/Efficiency" term="Efficiency" label="Efficiency" /> 
+                                <category scheme="https://blog.parcio.de/tags/Network-Communication" term="Network-Communication" label="Network Communication" /> 
+                                <category scheme="https://blog.parcio.de/tags/Libfabric" term="Libfabric" label="Libfabric" />
+        </entry>
+        <entry>
+            <title>heimdallr: Compile time correctness checking for message passing in Rust</title>
+            <link href="https://blog.parcio.de/posts/2021/11/heimdallr/" rel="alternate" type="text/html"  hreflang="en" />
+            <id>https://blog.parcio.de/posts/2021/11/heimdallr/</id>
+                    <author>
+                        <name>Michael Blesel</name>
+                    </author>
+            <published>2021-11-18T00:00:00+00:00</published>
+            <updated>2021-11-18T00:00:00+00:00</updated>
+            <content type="html">
+                &lt;p&gt;In this post we will look at how the Rust programming language and its built-in correctness features can be applied to the message passing parallelization method.
+We will see how Rust&amp;rsquo;s memory safety features can be leveraged to design a message passing library which we call heimdallr.
+It is able to detect parallelization errors at compile time that would go unnoticed by the compiler when using the prevalent message passing interface MPI.&lt;/p&gt;
+&lt;p&gt;For readers who are new to this topic we will start with a very brief synopsis of message passing.
+In the field of high performance computing (HPC), parallel programs are executed on large computing clusters with often hundreds of computing nodes.
+Running an application in parallel on more than one computing node requires different parallelization techniques than multi-threading because the computing nodes do not have shared memory.
+Therefore a mechanism for sharing data between processes running on different nodes is needed.
+In HPC, the standard method of achieving this is called message passing.
+The applications have to explicitly send and receive the data that needs to be shared over a network.
+The most commonly used library for this is called MPI which stands for Message Passing Interface.&lt;/p&gt;
+&lt;p&gt;At the start of an MPI application every participating process is given an ID (often called rank) that can be used to differentiate between them in the code.
+MPI then provides many different send and receive functions with varying semantics such as blocking/non-blocking and synchronous/asynchronous.
+Additionally collective operations such as barriers for synchronization or broadcast/gather operations are provided.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;MPI_Init&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;NULL&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;NULL&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;
+&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;MPI_Comm_rank&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;MPI_Comm_size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;size&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;
+&lt;span class=&#34;kt&#34;&gt;double&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;malloc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;sizeof&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;double&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;42.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;MPI_Send&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_FLOAT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;MPI_Recv&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_FLOAT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_STATUS_IGNORE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;MPI_Finalize&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Here we can see a simple MPI program.
+After MPI&amp;rsquo;s initialization in line 1 each process asks for the values of their own &lt;code&gt;rank&lt;/code&gt; and the number of overall participating processes (here called &lt;code&gt;size&lt;/code&gt;) in lines 4-5.
+The goal of the program is to send a message containing the contents of the &lt;code&gt;buf&lt;/code&gt; array from process 0 to process 1.
+This message exchange happens in lines 13 and 16, where process 0 uses the &lt;code&gt;MPI_Send&lt;/code&gt; function to send the message and process 1 receives it with the &lt;code&gt;MPI_Recv&lt;/code&gt; function.&lt;/p&gt;
+&lt;p&gt;As we can see, the MPI functions take a lot of arguments but only the first four are important to follow this example.
+First comes a pointer to the buffer that is being sent from and received into.
+The next two arguments specify the number of elements that are sent and their data type, which is needed to calculate the correct number of bytes that will be sent.
+Lastly, the target or source process rank for the operation is specified.
+As mentioned in this example, process 0 targets process 1 with its send operation and process 1 tries to receive the data from process 0.&lt;/p&gt;
+&lt;p&gt;An avid reader might already have spotted that there is a problem in the code of the example.
+The data type of the &lt;code&gt;buf&lt;/code&gt; array is &lt;code&gt;double&lt;/code&gt; but in the MPI function calls &lt;code&gt;MPI_FLOAT&lt;/code&gt; is specified.
+This is in fact a bug and leads to the result that not all of the array&amp;rsquo;s data is transmitted but only half of it.&lt;/p&gt;
+&lt;p&gt;These kinds of parallelization errors can be hard to track down in real programs because no crash will occur here but the results of the program will be wrong.
+Furthermore, the C compiler and the MPI library are not able to detect this error and give the user a warning.
+Programming with MPI has many such pitfalls which are often due to MPI&amp;rsquo;s low-level nature combined with the dangers of C memory management with &lt;code&gt;void&lt;/code&gt; pointers.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;compile-time-correctness-through-rust&#34;&gt;
+        Compile time correctness through Rust
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#compile-time-correctness-through-rust&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Compile time correctness through Rust&#34; href=&#34;#compile-time-correctness-through-rust&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;Rust is a modern system programming language that focuses on memory and concurrency safety with strong compile time correctness checks.
+In recent times Rust has garnered more and more attention in circles where C is the current predominant language but a more safe solution is desired.
+In the field of HPC, C/C++ and Fortran are by far the most used languages.
+They provide great performance, have been around for a long time and there exists a lot of infrastructure in the form of libraries and tools for them.
+However, these languages do come with their drawbacks which can often be found in aspects like usability, programmability and a general lack of modern features.&lt;/p&gt;
+&lt;p&gt;Developing massive parallel programs for HPC is a complicated task and in our opinion the languages and libraries used should provide the developers with as much help as possible.
+Therefore we asked ourselves whether a language like Rust could provide an easier programming experience for message passing applications by avoiding and detecting as many errors in parallel code as possible at compile time.&lt;/p&gt;
+&lt;p&gt;Out of this research a Rust message passing library called &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/parcio/heimdallr&#34;
+  
+&gt;heimdallr&lt;/a&gt; was developed.
+heimdallr should currently be seen as a prototype implementation but it already has good examples of correctness checks that are currently nonexistent for MPI.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;eliminating-type-safety-errors-with-generics&#34;&gt;
+        Eliminating type safety errors with generics
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#eliminating-type-safety-errors-with-generics&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Eliminating type safety errors with generics&#34; href=&#34;#eliminating-type-safety-errors-with-generics&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;In the previously given example one might ask themselves why it is necessary for the user to manually specify the concrete data type of a buffer when this is information that a compiler should absolutely be able to derive by itself.
+The type safety problems with MPI stem from the fact that the whole API works on untyped memory addresses for data buffers via the use of C&amp;rsquo;s &lt;code&gt;void&lt;/code&gt; pointers to allow the MPI functions to work with any type of data.
+The type information is therefore explicitly discarded and must be manually passed to a MPI function call by the user.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;n&#34;&gt;let&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;HeimdallrClient&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;init&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;env&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;::&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()).&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;unwrap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;let&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mut&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;vec&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mf&#34;&gt;0.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;id&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;0.&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;42.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;send&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;id&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;receive&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Here we see an equivalent program written in Rust with our heimdallr message passing library.
+First of all, it is apparent that the message passing code is less verbose when compared to its MPI counterpart.
+Our design principles with heimdallr are safety and usability.
+From the usability perspective we can see that some of the boilerplate code that is necessary in MPI, like for example manually asking for and storing a process&amp;rsquo;s rank variable, is not required with heimdallr.&lt;/p&gt;
+&lt;p&gt;More importantly, the previously discussed type safety issue for sending a data buffer does not come up with heimdallr.
+We are making use of the language&amp;rsquo;s generic programming features to let the compiler handle the type deduction of a transmitted variable.
+This does not only make it more safe but also easier to use for a developer.&lt;/p&gt;
+&lt;p&gt;Of course Rust is by far not the only modern language to provide generic programming features and this interface change to the &lt;code&gt;send&lt;/code&gt; and &lt;code&gt;receive&lt;/code&gt; functions could have been done in a myriad of languages.
+Therefore we should go on to an example where some of Rust&amp;rsquo;s unique features allow us to provide a safer message passing interface to the users.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;ensuring-buffer-safety-for-non-blocking-communication&#34;&gt;
+        Ensuring buffer safety for non-blocking communication
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#ensuring-buffer-safety-for-non-blocking-communication&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Ensuring buffer safety for non-blocking communication&#34; href=&#34;#ensuring-buffer-safety-for-non-blocking-communication&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;As previously mentioned, MPI provides multiple send and receive functions with varying semantics.
+The most basic form of message passing is called &lt;em&gt;blocking&lt;/em&gt;.
+When a message passing function is called in this context the sender process is blocked until the data buffer that is being sent is guaranteed to have been processed by the message passing library.
+The receiving process is also blocked until the contents of the incoming message have been safely copied into the receiving data buffer.
+This form of message passing is the most intuitive from a user&amp;rsquo;s perspective but it can also be subpar from a performance perspective due to the resulting idle times for both processes.&lt;/p&gt;
+&lt;p&gt;A solution that is often better suited from the performance perspective is the use of so called &lt;em&gt;non-blocking&lt;/em&gt; communication.
+Here the process of passing the message is handled in the background and the program can continue with its execution almost immediately.
+This type of message passing however does not come without dangers, as we will see in the following code snippet.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;MPI_Isend&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_DOUBLE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;req&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;        &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;42.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rank&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;MPI_Recv&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_DOUBLE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;MPI_COMM_WORLD&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;status&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;In this example process 0 tries to send a buffer to process 1 using MPI&amp;rsquo;s non-blocking send function &lt;code&gt;MPI_Isend&lt;/code&gt;.
+The non-blocking send operation in line 2 allows process 0 to continue its execution before the sending of the message has concluded.
+The problem arises in lines 3-4 where process 0 also modifies the contents of the data buffer that is being sent.
+Since the message passing process might still be running this may also modify the contents of the sent message and thereby cause a program error because this behavior was not intended by the programmer.&lt;/p&gt;
+&lt;p&gt;This is a known safety issue with the use of non-blocking communication in MPI.
+A data buffer that is used in a non-blocking operation is in an &lt;em&gt;unsafe&lt;/em&gt; state until it has been made sure that the message passing operation on it has concluded.
+To check the status of a non-blocking operation and thereby the safety status of its data buffer, MPI provides functions like &lt;code&gt;MPI_Wait&lt;/code&gt; that block the current process until the referenced message passing operation is confirmed to be finished.
+The MPI standard requires such a function to be called before accessing a data buffer again that has been used in non-blocking communication.
+Adding a &lt;code&gt;MPI_Wait&lt;/code&gt; call between lines 2-3 of the example code would make this program work correctly.&lt;/p&gt;
+&lt;p&gt;The problem with all of this is that MPI requires the programmer to always remember this behavior and neither the library nor the compiler are able to detect and warn users of potential errors with buffer safety for non-blocking communication.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;leveraging-rusts-ownership-for-buffer-safety&#34;&gt;
+        Leveraging Rust&amp;rsquo;s ownership for buffer safety
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#leveraging-rusts-ownership-for-buffer-safety&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Leveraging Rust&amp;rsquo;s ownership for buffer safety&#34; href=&#34;#leveraging-rusts-ownership-for-buffer-safety&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;The core concept of Rust&amp;rsquo;s memory management is the so called &lt;em&gt;ownership&lt;/em&gt; feature.
+Ownership works in a way that every data object in Rust has exactly one owner.
+Once the owner variable goes out of scope the data is automatically deallocated.
+There can be references to an object but only within a limited rule-set.
+A variable can either have an unlimited number of immutable (read-only) references or exactly &lt;strong&gt;one&lt;/strong&gt; mutable reference.
+These limitations allow the Rust compiler to reason about correct memory usage.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;id&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;let&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;handle&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;send_nb&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;handle&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;0.&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BUF_SIZE&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;42.0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;id&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;receive&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;?&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;This is the heimdallr equivalent of the non-blocking MPI code that we have seen previously.
+The send operation in line 2 makes use of Rust&amp;rsquo;s ownership concept to protect the data buffer that is being sent.
+Since there can be only one owner of the &lt;code&gt;buf&lt;/code&gt; variable, passing it directly to a function call means that the ownership is moved into the function.
+This has the side effect that &lt;code&gt;buf&lt;/code&gt; is no longer accessible from outside the function.
+Therefore it is impossible to modify the data buffer while the message passing operation is running.
+Trying to do so would lead to a compilation error.
+For a user to access the data again they need to request ownership back from the message passing operation, which happens in line 3.
+The &lt;code&gt;data&lt;/code&gt; function called there on the &lt;code&gt;handle&lt;/code&gt; that was returned by the non-blocking send function is an equivalent to &lt;code&gt;MPI_Wait&lt;/code&gt;.
+It blocks until the used data buffer is safe to be accessed again and then returns the ownership to the caller.&lt;/p&gt;
+&lt;p&gt;So in essence it is the same workflow as for an MPI application, but Rust&amp;rsquo;s ownership rules allow the library to be designed in a way where correct and safe usage of non-blocking communication can be enforced at compile time.
+This is a big step up in usability and correctness because it is no longer the users task to remember the implicit rules of non-blocking communication but instead it is a detected program error if the correct procedure is not followed.&lt;/p&gt;
+&lt;p&gt;This is of course just one small example on how the safety features of Rust can be used to design safer interfaces but in our opinion in showcases the possibilities very well.&lt;/p&gt;
+&lt;div class=&#34;gblog-post__anchorwrap&#34;&gt;
+    &lt;h2 id=&#34;conclusion-and-further-reading&#34;&gt;
+        Conclusion and further reading
+        &lt;a data-clipboard-text=&#34;https://blog.parcio.de/posts/2021/11/heimdallr/#conclusion-and-further-reading&#34; class=&#34;gblog-post__anchor gblog-post__anchor--right clip&#34; aria-label=&#34;Anchor Conclusion and further reading&#34; href=&#34;#conclusion-and-further-reading&#34;&gt;
+            &lt;svg class=&#34;icon gblog_link&#34;&gt;&lt;use xlink:href=&#34;#gblog_link&#34;&gt;&lt;/use&gt;&lt;/svg&gt;
+        &lt;/a&gt;
+    &lt;/h2&gt;
+&lt;/div&gt;
+&lt;p&gt;This blog post is supposed to give a brief overview on the challenges of message passing parallelization and how the programming interfaces used for it could be designed in a safer way.
+Parallel programming is a complex topic and introduces a variety of new error classes.
+Therefore we find it very important that the libraries and tools used for it offer as much help as possible to developers by enforcing correctness and detecting possible errors.&lt;/p&gt;
+&lt;p&gt;The heimdallr library introduced in this post is a prototype implementation of a message passing library that concentrates on the compile time correctness aspects.
+It is not yet feature complete and is mainly supposed to show some of the possibilities for better usability and safety in MPI.&lt;/p&gt;
+&lt;p&gt;To keep this post brief, we have not gone into too much detail about the implementation and some of the open problems with this solution.
+heimdallr does have some open problems which we could not go over here without making this blog way too long.
+We also did not talk about the performance aspects, which is quite an important topic in the context of using it for HPC.&lt;/p&gt;
+&lt;p&gt;If your interest was piqued, a more detailed discussion about the pros and cons of heimdallr can be found in our &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://doi.org/10.1007/978-3-030-90539-2_13&#34;
+  
+&gt;heimdallr paper&lt;/a&gt;.
+There, we also discuss some of the problems with the current implementation and show benchmark results where heimdallr&amp;rsquo;s performance is compared to MPI.&lt;/p&gt;
+&lt;p&gt;If you would like to try out heimdallr or have a look at the code, you can visit our &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/parcio/heimdallr&#34;
+  
+&gt;GitHub&lt;/a&gt; repository.&lt;/p&gt;
+            </content>  
+                                <category scheme="https://blog.parcio.de/authors/michael.blesel" term="michael.blesel" label="michael.blesel" />  
+                                <category scheme="https://blog.parcio.de/tags/Correctness" term="Correctness" label="Correctness" /> 
+                                <category scheme="https://blog.parcio.de/tags/Message-Passing" term="Message-Passing" label="Message Passing" /> 
+                                <category scheme="https://blog.parcio.de/tags/Rust" term="Rust" label="Rust" />
+        </entry>
+        <entry>
+            <title>Performance of conditional operator vs. fabs</title>
+            <link href="https://blog.parcio.de/posts/2021/09/conditional-vs-fabs/" rel="alternate" type="text/html"  hreflang="en" />
+            <id>https://blog.parcio.de/posts/2021/09/conditional-vs-fabs/</id>
+                    <author>
+                        <name>Michael Kuhn</name>
+                    </author>
+            <published>2021-09-21T00:00:00+00:00</published>
+            <updated>2021-09-21T00:00:00+00:00</updated>
+            <content type="html">
+                &lt;p&gt;Today, we will take a look at potential performance problems when using the conditional operator &lt;code&gt;?:&lt;/code&gt;.
+Specifically, we will use it to calculate a variable&amp;rsquo;s absolute value and compare its performance with that of the function &lt;code&gt;fabs&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Assume the following numerical code written in C, where we need to calculate the absolute value of a &lt;code&gt;double&lt;/code&gt; variable called &lt;code&gt;residuum&lt;/code&gt;.&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;
+Since we want to perform this operation within the inner loop, we will have to keep performance overhead as low as possible.
+To reduce dependencies on math libraries and avoid function call overhead, we manually get the absolute value by first checking whether &lt;code&gt;residuum&lt;/code&gt; is less than &lt;code&gt;0&lt;/code&gt; and, if it is, negating it using the &lt;code&gt;-&lt;/code&gt; operator.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;j&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;j&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;j&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+	&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+		&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;k&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;k&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;k&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+		&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;			&lt;span class=&#34;n&#34;&gt;residuum&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;residuum&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;?&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;nl&#34;&gt;residuum&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;residuum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;		&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+	&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;This looks easy enough and, in theory, should provide satisfactory performance.
+Just to be sure, let&amp;rsquo;s do the same using the &lt;code&gt;fabs&lt;/code&gt; function from the math library, which returns the absolute value of a floating-point number.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;j&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;j&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;j&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+	&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+		&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;k&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;k&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;k&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+		&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;			&lt;span class=&#34;n&#34;&gt;residuum&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;fabs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;residuum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;		&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+	&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Let&amp;rsquo;s compare the two implementations using &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;https://github.com/sharkdp/hyperfine&#34;
+  
+&gt;hyperfine&lt;/a&gt;.&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-plain&#34; data-lang=&#34;plain&#34;&gt;Benchmark #1: ./conditional
+  Time (mean ± σ):     476.3 ms ±   0.4 ms    [User: 474.5 ms, System: 0.7 ms]
+  Range (min … max):   475.6 ms … 476.8 ms    10 runs
+
+Benchmark #2: ./fabs
+  Time (mean ± σ):     243.8 ms ±   2.0 ms    [User: 242.2 ms, System: 0.8 ms]
+  Range (min … max):   242.1 ms … 249.0 ms    12 runs
+
+Summary
+  &amp;#39;./fabs&amp;#39; ran
+&lt;span class=&#34;hl&#34;&gt;    1.95 ± 0.02 times faster than &amp;#39;./conditional&amp;#39;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;As we can see, the &lt;code&gt;fabs&lt;/code&gt; implementation ran faster by more than a factor of 1.9!
+Where does this massive performance difference come from?
+Let&amp;rsquo;s use &lt;code&gt;perf stat&lt;/code&gt; to analyze the two implementations in a bit more detail.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-plain&#34; data-lang=&#34;plain&#34;&gt;Performance counter stats for &amp;#39;./conditional&amp;#39;:
+
+           478,51 msec task-clock:u              #    0,998 CPUs utilized
+                0      context-switches:u        #    0,000 /sec
+                0      cpu-migrations:u          #    0,000 /sec
+               55      page-faults:u             #  114,940 /sec
+&lt;span class=&#34;hl&#34;&gt;    2.035.211.626      cycles:u                  #    4,253 GHz                      (83,28%)
+&lt;/span&gt;        1.592.587      stalled-cycles-frontend:u #    0,08% frontend cycles idle     (83,28%)
+          223.899      stalled-cycles-backend:u  #    0,01% backend cycles idle      (83,28%)
+&lt;span class=&#34;hl&#34;&gt;    4.009.332.175      instructions:u            #    1,97  insn per cycle
+&lt;/span&gt;                                                 #    0,00  stalled cycles per insn  (83,32%)
+    2.001.712.079      branches:u                #    4,183 G/sec                    (83,49%)
+        1.503.325      branch-misses:u           #    0,08% of all branches          (83,34%)
+
+      0,479296441 seconds time elapsed
+
+      0,474423000 seconds user
+      0,001996000 seconds sys
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;The most important metrics here are the number of instructions and the number of cycles.
+Our processor can run around 4,250,000,000 cycles per second, resulting in a runtime of 0.48 seconds to process the roughly 4,000,000,000 instructions at 1.97 instructions per cycle.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-plain&#34; data-lang=&#34;plain&#34;&gt;Performance counter stats for &amp;#39;./fabs&amp;#39;:
+
+           245,48 msec task-clock:u              #    0,997 CPUs utilized
+                0      context-switches:u        #    0,000 /sec
+                0      cpu-migrations:u          #    0,000 /sec
+               51      page-faults:u             #  207,757 /sec
+&lt;span class=&#34;hl&#34;&gt;    1.039.265.407      cycles:u                  #    4,234 GHz                      (83,31%)
+&lt;/span&gt;        1.720.716      stalled-cycles-frontend:u #    0,17% frontend cycles idle     (83,30%)
+          356.067      stalled-cycles-backend:u  #    0,03% backend cycles idle      (83,30%)
+&lt;span class=&#34;hl&#34;&gt;    3.007.112.338      instructions:u            #    2,89  insn per cycle
+&lt;/span&gt;                                                 #    0,00  stalled cycles per insn  (83,29%)
+    1.003.303.373      branches:u                #    4,087 G/sec                    (83,46%)
+        1.662.984      branch-misses:u           #    0,17% of all branches          (83,34%)
+
+      0,246272015 seconds time elapsed
+
+      0,243024000 seconds user
+      0,000977000 seconds sys
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;The reduction from 2,000,000,000 to 1,000,000,000 cycles corresponds to the performance improvement of 1.95.
+Using the &lt;code&gt;fabs&lt;/code&gt; function reduced the number of instructions by roughly 25% and, at the same time, increased the number of instructions per cycle to 2.89 (a factor of 1.47).
+Getting rid of the conditional operator reduced the number of branches by half, allowing the processor to process more instructions per cycle.
+The conditional operator is more or less a short-hand version of the &lt;code&gt;if&lt;/code&gt; statement and introduced a significant number of branches into our inner loop.&lt;/p&gt;
+&lt;p&gt;Running three nested loops with 1,000 iterations each resulted in 1,000,000,000 inner loop iterations, that is, we saved one instruction per inner loop iteration.
+These branch and instruction differences can be checked in even more detail using &lt;code&gt;objdump -S&lt;/code&gt;; this is left as an exercise for the reader.&lt;/p&gt;
+&lt;p&gt;The magnitude of these performance differences is rather surprising and shows that it makes sense to check even seemingly simple code for potential performance problems.&lt;/p&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;The code shown is only an excerpt, the full code is available &lt;a
+  class=&#34;gblog-markdown__link&#34;
+  href=&#34;conditional-vs-fabs.c&#34;
+  
+&gt;here&lt;/a&gt;. It was compiled with GCC 11.2 using the &lt;code&gt;-O2 -Wall -Wextra -Wpedantic&lt;/code&gt; flags and the &lt;code&gt;-lm&lt;/code&gt; library.&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;hyperfine performs a statistical performance analysis. It runs the provided commands multiple times to reduce the influence of random errors and calculates derived metrics such as the mean and standard deviation.&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+            </content>  
+                                <category scheme="https://blog.parcio.de/authors/michael.kuhn" term="michael.kuhn" label="michael.kuhn" />  
+                                <category scheme="https://blog.parcio.de/tags/Efficiency" term="Efficiency" label="Efficiency" />
+        </entry>
+</feed>
